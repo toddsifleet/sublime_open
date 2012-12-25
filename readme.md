@@ -14,14 +14,19 @@ Move the entire repo into:
 
 Features
 -------
+
 -Track recent files
+
 -Store favorite directories and files
+
 -Fast file search
+
 -Quickly navigate with your keyboard
 
 Key Bindings
 -------
 OSX
+	
 	command+shift+f: Favorites
 	command+shift+r: Recent
 	command+ctrl+f: Add to Favorites
@@ -33,6 +38,7 @@ OSX
 	command+shift+backspace: Delete File
 
 Windows
+
 	ctrl+shift+f: Favorites
 	ctrl+shift+r: Recent
 	ctrl+alt+f: Add to Favorites
@@ -42,7 +48,8 @@ Windows
 	ctrl+shift+n: New File
 	ctrl+shift+d: New Directory
 	ctrl+shift+backspace: Delete File
-	License:
+
+License:
 -------
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
