@@ -1,0 +1,64 @@
+[
+    
+    { 
+        "keys": ["command+shift+f"],
+        "command": "find", 
+        "args": {
+            "command": "show_collection",
+            "collection": "favorites"
+        }  
+    },
+    
+    {
+        "keys": ["command+shift+r"],
+        "command": "find",
+        "args": {
+            "command": "show_collection",
+            "collection": "recent"
+        }
+    },
+
+    {
+        "keys": ["command+ctrl+f"],
+        "command": "favorite",
+        "args": {}  
+    },
+     
+    {
+        "keys": ["command+p"],
+        "command": "find",
+        "args": {
+            "command": "project"
+        }
+    },
+
+    { 
+        "keys": ["command+ctrl+shift+f"],
+        "command": "favorite",
+        "args": {"command": "parent_folder"}  
+    },
+        
+    {
+        "keys": ["command+shift+o"],
+        "command": "find",
+        "args": {"command": "open"}  
+    },
+        
+    {
+        "keys": ["command+shift+n"],
+        "command": "find",
+        "args": {"command": "new_file"}  
+    },
+        
+    {
+        "keys": ["command+shift+d"],
+        "command": "find",
+        "args": {"command": "new_directory"}  
+    },
+        
+    {
+        "keys": ["command+shift+backspace"],
+        "command": "find",
+        "args": {"command": "delete_file"}  
+    }
+]
