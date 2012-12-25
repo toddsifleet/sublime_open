@@ -9,7 +9,9 @@ Installation
 Move the entire repo into:
     
 -Windows: %APPDATA%\Sublime Text 2
+
 -OS X: ~/Library/Application Support/Sublime Text 2
+
 -Linux: ~/.Sublime Text 2
 
 Features
