@@ -5,14 +5,11 @@ A better way to navigate the file system in sublime text.  You never need to ope
 
 Installation
 -------
+Within the sublime text command line run:
 
-Move the entire repo into:
-    
--Windows: %APPDATA%\Sublime Text 2
+	sublime.packages_path()
 
--OS X: ~/Library/Application Support/Sublime Text 2
-
--Linux: ~/.Sublime Text 2
+This command returns a path to a directory, move the entire repo into that directory
 
 Features
 -------
