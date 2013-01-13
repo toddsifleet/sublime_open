@@ -8,6 +8,8 @@ import sublime
 #How many files do we want to keep in our history
 number_of_recent_files = 500
 
+#put this in front of directories to make it easy to filter for directories
+directory_prefix = '`'
 #define the paths to where we store our collections
 #you can add more collections just remeber to update your keymap
 collections = {
@@ -115,16 +117,20 @@ class FindCommand(sublime_plugin.TextCommand):
         else:
             raise SublimeException("Invalid Command!")
 
-    #List all files in the current directory.
+    #List all files/directories in the current directory.
     def list_files(self):
         '''
             Show all non excluded files located in the directory self.path
 
             We don't just show the raw file name we show:
                1. Special Commands (cd, new file, etc)
-               2. We convert a file path to 
-                   File Name
-                   Full Path
+               2. For Search we display
+                    File:
+                       File Name
+                       Shortened Path
+                    Directory:
+                        <directory_prefix>Directory Name
+                        Shortened Path
         '''
         
         common_commands = [
@@ -134,9 +140,9 @@ class FindCommand(sublime_plugin.TextCommand):
 
         file_names = [f for f in os.listdir(self.path) if valid_file(f)]
         self.files = [os.path.join(self.path, f) for f in file_names]
-        display_names = common_commands + create_display_names(self.files, file_path_depth['default'])
+        display_names = create_display_names(self.files, file_path_depth['default'])
         
-        self.window.show_quick_panel(display_names, self.handle_input)
+        self.window.show_quick_panel(common_commands + display_names, self.handle_input)
     
     #Call back function after the user select what file/command to open
     def handle_input(self, command):
@@ -369,8 +375,12 @@ def shorten_path(path, depth = 2):
 def create_display_names(paths, depth = 0):
     display_names = []
     for path in paths:
+        #be able to quickly filter for directories, helpful if you are trying to walk the 
+        #directory tree.  This could be slow in huge directories, it may be quicker to just
+        #check for a file extension, it wouldn't be perfect, but it is probably good enough
+        prefix = directory_prefix if os.path.isdir(path) else ""
         tail, file_name = os.path.split(path)
-        display_names.append([file_name or 'Home (%s)' % path, shorten_path(tail, depth)])
+        display_names.append([prefix + (file_name or 'Home (%s)' % path), shorten_path(tail, depth)])
 
     return display_names
 
