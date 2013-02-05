@@ -1,5 +1,5 @@
 from functools import partial
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import os
 
 import sublime_plugin
@@ -10,6 +10,7 @@ number_of_recent_files = 500
 
 #put this in front of directories to make it easy to filter for directories
 directory_prefix = '`'
+
 #define the paths to where we store our collections
 #you can add more collections just remeber to update your keymap
 collections = {
@@ -87,11 +88,24 @@ def valid_file(path):
             return False
     return True
 
-#we get the last project that we had open 
+def create_project(input):
+    p = namedtuple('Project', ['name', 'match'])
+    data = [x.strip() for x in input.split(':')]
+    name = data.pop(0).strip()
+    match = data.pop() if data else ''
+    return p(name, match)
+
+
+def init_projects():
+    projects = [create_project(x) for x in get_list_from_file(collections['projects'])]
+
+    current_project = projects[0] if projects else 'default'
+    return projects, current_project
+
+#we get the last project that we had open
 #This must be stored as a global so that when we close/open/favorite a new file
 #it is added to the correct 'recent' collection
-projects = get_list_from_file(collections['projects'])
-current_project =  projects[0] if projects else 'default'
+projects, current_project = init_projects();
 
 class FindCommand(sublime_plugin.TextCommand):
     def run(self, edit, command = 'open', collection = False):
@@ -183,36 +197,43 @@ class FindCommand(sublime_plugin.TextCommand):
         ][command]()
 
     def show_projects(self):
-        self.projects = get_list_from_file(collections['projects'])
-        self.window.show_quick_panel(['New Project'] + self.projects, self.change_project)
+        self.window.show_quick_panel(
+            [['New Project', 'Create a New Project']] + [[p.name, p.match or 'Match Everything'] for p in projects], 
+            self.change_project
+        )
 
     def change_project(self, project_number):
         global current_project
         if project_number < 0:
             return
-        
         if project_number == 0:
             self.create_project()
         else:
-            current_project = self.projects[project_number - 1]
-            self.projects.remove(current_project)
-            self.projects.insert(0, current_project)
-            write_list_to_file(self.projects, collections['projects'])
+            current_project = projects[project_number - 1]
+            projects.remove(current_project)
+            projects.insert(0, current_project)
+            self.update_projects()
 
-    def create_project(self, response = None):
+    def create_project(self, response=None):
         global current_project
         if response == None:
             self.prompt("Create a New Project", self.create_project, '')
             return
 
-        project = response.strip()
-        if project in self.projects:
-            sublime.status_message(file_name + " is already a project")
+        project = create_project(response)
+        if project.name in [x.name for x in projects]:
+            sublime.status_message(project.name + " is already a project")
         else:
-            self.projects.insert(0, project)
-            write_list_to_file(self.projects, collections['projects'])
+            projects.insert(0, project)
+            self.update_projects()
             current_project = project
-            sublime.status_message("Project '%s' created!" % project)
+            sublime.status_message("Project '%s' created!" % project.name)
+
+    def update_projects(self):
+        write_list_to_file(
+            ["%s:%s" % (p.name, p.match) for p in projects],
+            collections['projects']
+        )
 
     def show_collection(self, collection):
         '''
@@ -232,7 +253,8 @@ class FindCommand(sublime_plugin.TextCommand):
             This allows you to refine your search in reverse order, instead of having to 
             back track.
         '''
-        self.files = get_list_from_file(collections[collection] % current_project)
+        print current_project
+        self.files = get_list_from_file(collections[collection] % current_project.name)
         search_names = [format_path_for_search(p) for p in get_unique_suffixes(self.files)]
         short_paths = [shorten_path(p, file_path_depth[collection]) for p in self.files]
 
@@ -316,7 +338,7 @@ class RecentCommand(sublime_plugin.EventListener):
         self.update_recent(view.file_name())
     
     def update_recent(self, file_name):
-        collection_name = collections['recent'] % current_project
+        collection_name = self.get_collection(file_name)
         if not file_name:
             return
         paths = get_list_from_file(collection_name, number_of_recent_files)
@@ -324,6 +346,15 @@ class RecentCommand(sublime_plugin.EventListener):
         recent.insert(0, file_name)
 
         write_list_to_file(recent, collection_name)
+
+    def get_collection(self, file_name):
+        for project in projects:
+            if project.match in file_name:
+                project_name = project.name
+                break
+        else:
+            project_name = 'default'
+        return collections['recent'] % project_name
 
 #Add curent file, or it's parent folder to Favorites
 class FavoriteCommand(sublime_plugin.TextCommand):
@@ -450,7 +481,7 @@ def format_path_for_search(path):
     '''
     tail, head = os.path.split(path)
     if tail and head:
-        return "%s [\%s]" % (head, path)
+        return "%s [%s]" % (head, os.path.join('..', path))
     if tail:
         return 'Home (%s)' % path
     else:

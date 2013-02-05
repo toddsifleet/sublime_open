@@ -25,7 +25,7 @@
     },
      
     {
-        "keys": ["command+p"],
+        "keys": ["command+alt+p"],
         "command": "find",
         "args": {
             "command": "project"
