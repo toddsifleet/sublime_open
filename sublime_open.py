@@ -10,7 +10,6 @@ number_of_recent_files = 500
 
 #put this in front of directories to make it easy to filter for directories
 directory_prefix = '`'
-
 #define the paths to where we store our collections
 #you can add more collections just remeber to update your keymap
 collections = {
@@ -213,6 +212,8 @@ class FindCommand(sublime_plugin.TextCommand):
             projects.remove(current_project)
             projects.insert(0, current_project)
             self.update_projects()
+            
+        self.show_collection('recent')
 
     def create_project(self, response=None):
         global current_project
