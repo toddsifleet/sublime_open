@@ -1,14 +1,14 @@
 [
-    
-    { 
+
+    {
         "keys": ["command+shift+f"],
-        "command": "find", 
+        "command": "find",
         "args": {
             "command": "show_collection",
             "collection": "favorites"
-        }  
+        }
     },
-    
+
     {
         "keys": ["command+shift+r"],
         "command": "find",
@@ -21,9 +21,9 @@
     {
         "keys": ["command+ctrl+f"],
         "command": "favorite",
-        "args": {}  
+        "args": {}
     },
-     
+
     {
         "keys": ["command+alt+p"],
         "command": "find",
@@ -32,33 +32,33 @@
         }
     },
 
-    { 
+    {
         "keys": ["command+ctrl+shift+f"],
         "command": "favorite",
-        "args": {"command": "parent_folder"}  
+        "args": {"command": "parent_folder"}
     },
-        
+
     {
         "keys": ["command+shift+o"],
         "command": "find",
-        "args": {"command": "open"}  
+        "args": {"command": "open"}
     },
-        
+
     {
         "keys": ["command+shift+n"],
         "command": "find",
-        "args": {"command": "new_file"}  
+        "args": {"command": "new_file"}
     },
-        
+
     {
         "keys": ["command+shift+d"],
         "command": "find",
-        "args": {"command": "new_directory"}  
+        "args": {"command": "new_directory"}
     },
-        
+
     {
         "keys": ["command+shift+backspace"],
         "command": "find",
-        "args": {"command": "delete_file"}  
+        "args": {"command": "delete_file"}
     }
 ]
