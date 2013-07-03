@@ -96,7 +96,7 @@ def valid_file(path):
 def create_index(path, name):
     output = []
     with open(collections['index'] % name, 'w') as index:
-        for folder, subs, files in os.walk(path):
+        for folder, subs, files in os.walk(path, followlinks = True):
             for filename in files:
                 output.append(os.path.join(folder, filename))
     write_list_to_file(output, collections['index'] % name)
@@ -116,6 +116,7 @@ class IndexBuilder(threading.Thread):
                     project = project[1],
                     path = project[0]
                 ))
+            sublime.status_message("Finished building index for %s" % project.name)
         sublime.status_message("Finished building indexes")
 
 def create_project(input):
@@ -130,6 +131,8 @@ def init_projects():
     projects = [create_project(x) for x in get_list_from_file(collections['projects'])]
 
     current_project = projects[0] if projects else create_project('default')
+
+    IndexBuilder(current_project).run()
     return projects, current_project
 
 def load_all_indexes():
@@ -139,9 +142,6 @@ def load_all_indexes():
             project = map(lambda x: x.strip(), line.split(":"))
             projects.append(project)
     IndexBuilder(projects).run()
-
-
-load_all_indexes()
 
 
 #we get the last project that we had open
@@ -251,7 +251,7 @@ class FindCommand(sublime_plugin.TextCommand):
             projects.remove(current_project)
             projects.insert(0, current_project)
             self.update_projects()
-
+            IndexBuilder(current_project).run()
             self.show_collection('index')
 
     def create_project(self, response=None):
@@ -294,6 +294,7 @@ class FindCommand(sublime_plugin.TextCommand):
             This allows you to refine your search in reverse order, instead of having to
             back track.
         '''
+        print collections[collection] % current_project.name
         self.files = get_list_from_file(collections[collection] % current_project.name)
         search_names = [format_path_for_search(p) for p in get_unique_suffixes(self.files)]
         short_paths = [shorten_path(p, file_path_depth[collection]) for p in self.files]

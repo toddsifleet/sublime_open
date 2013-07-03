@@ -17,6 +17,14 @@
             "collection": "recent"
         }
     },
+    {
+        "keys": ["command+i"],
+        "command": "find",
+        "args": {
+            "command": "show_collection",
+            "collection": "index"
+        }
+    },
 
     {
         "keys": ["command+ctrl+f"],
