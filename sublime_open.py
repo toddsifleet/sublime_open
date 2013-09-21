@@ -1,9 +1,13 @@
 from functools import partial
 from collections import defaultdict, namedtuple
 import os
+import threading
 
 import sublime_plugin
 import sublime
+
+p = namedtuple('Project', ['name', 'match'])
+
 
 #How many files do we want to keep in our history
 number_of_recent_files = 500
@@ -14,16 +18,18 @@ directory_prefix = '`'
 #you can add more collections just remeber to update your keymap
 collections = {
     'favorites': os.path.join(os.getcwd(), 'collections', 'favorites_%s.txt'),
+    'index': os.path.join(os.getcwd(), 'collections', 'index_%s.txt'),
     'recent': os.path.join(os.getcwd(), 'collections', 'recent_%s.txt'),
     'projects': os.path.join(os.getcwd(), 'collections', 'projects.txt')
 }
 
-#how much of the filepath do you want to show 
+#how much of the filepath do you want to show
 file_path_depth = {
     'default': 3,
     #define per collection
     'favorites': 4,
-    'recent': 0
+    'recent': 0,
+    'index': 4
 }
 
 #store path here for persistence's sake
@@ -41,9 +47,9 @@ def get_change_dir_string(path):
     if path and file_name:
         tail, head = os.path.split(path)
         if head:
-            return os.path.join(tail, "(%s)" % head, file_name) 
+            return os.path.join(tail, "(%s)" % head, file_name)
         else:
-            return os.path.join("(%s)" % path.strip('\\/'), file_name) 
+            return os.path.join("(%s)" % path.strip('\\/'), file_name)
     else:
         return 'Home Directory (%s)' % path
 
@@ -87,19 +93,56 @@ def valid_file(path):
             return False
     return True
 
+def create_index(path, name):
+    output = []
+    with open(collections['index'] % name, 'w') as index:
+        for folder, subs, files in os.walk(path, followlinks = True):
+            for filename in files:
+                output.append(os.path.join(folder, filename))
+    write_list_to_file(output, collections['index'] % name)
+
+class IndexBuilder(threading.Thread):
+    def __init__(self, projects):
+        #allow us to pass in a single project or many projects
+        self.projects = projects if isinstance(projects, list) else [projects]
+
+    def run(self):
+        for project in self.projects:
+            sublime.status_message("Creating index for {project}...".format(project = project[1]))
+            try:
+                create_index(*project)
+            except:
+                SublimeException("Error creating index for {project} in {path}".format(
+                    project = project[1],
+                    path = project[0]
+                ))
+            sublime.status_message("Finished building index for %s" % project.name)
+        sublime.status_message("Finished building indexes")
+
 def create_project(input):
-    p = namedtuple('Project', ['name', 'match'])
     data = [x.strip() for x in input.split(':')]
     name = data.pop(0).strip()
     match = data.pop() if data else ''
+    if match: create_index(match, name)
     return p(name, match)
 
 
 def init_projects():
     projects = [create_project(x) for x in get_list_from_file(collections['projects'])]
 
-    current_project = projects[0] if projects else 'default'
+    current_project = projects[0] if projects else create_project('default')
+
+    IndexBuilder(current_project).run()
     return projects, current_project
+
+def load_all_indexes():
+    projects = []
+    with open(collections['projects']) as fh:
+        for line in fh.readlines():
+            project = map(lambda x: x.strip(), line.split(":"))
+            projects.append(project)
+    IndexBuilder(projects).run()
+
 
 #we get the last project that we had open
 #This must be stored as a global so that when we close/open/favorite a new file
@@ -114,21 +157,15 @@ class FindCommand(sublime_plugin.TextCommand):
         #if no filename then we use the path from the previous file
         self.path = os.path.dirname(self.file_name or path)
 
-        if not ( self.path or collection ):
-            raise SublimeException("Error no path found!")
+        return {
+            'new_file': self.file_prompt,
+            'new_directory': self.directory_prompt,
+            'delete_file': self.delete_file,
+            'show_collection': partial(self.show_collection, collection),
+            'project': self.show_projects,
+            'open': partial(self.change_directory, self.path)
+        }[command]()
 
-        if 1:
-            return {
-                'new_file': self.file_prompt,
-                'new_directory': self.directory_prompt,
-                'delete_file': self.delete_file,
-                'show_collection': partial(self.show_collection, collection),
-                'project': self.show_projects,
-                'open': partial(self.change_directory, self.path)
-            }[command]()
-
-        else:
-            raise SublimeException("Invalid Command!")
 
     #List all files/directories in the current directory.
     def list_files(self):
@@ -145,18 +182,18 @@ class FindCommand(sublime_plugin.TextCommand):
                         <directory_prefix>Directory Name
                         Shortened Path
         '''
-        
+
         common_commands = [
-            ['Change Directory', get_change_dir_string(self.path)], 
+            ['Change Directory', get_change_dir_string(self.path)],
             ['Other Options', 'New File/Folder | Recent/Favorites | Switch Project']
         ]
 
         file_names = [f for f in os.listdir(self.path) if valid_file(f)]
         self.files = [os.path.join(self.path, f) for f in file_names]
         display_names = create_display_names(self.files, file_path_depth['default'])
-        
+
         self.window.show_quick_panel(common_commands + display_names, self.handle_input)
-    
+
     #Call back function after the user select what file/command to open
     def handle_input(self, command):
         if command == -1:
@@ -166,22 +203,22 @@ class FindCommand(sublime_plugin.TextCommand):
                 self.go_back_directory,
                 self.custom_commands
             ][command]() #call the appropriate command based on index
-        
+
         #they selected a file so we grab its path
-        path = self.files[command - 2] 
+        path = self.files[command - 2]
         self.open_path(path)
 
     def custom_commands(self, command = None):
         if command is None:
             return self.window.show_quick_panel([
                 ['Back To Files', 'View Files in Current Directory'],
-                ['New File', 'Create a new file'], 
-                ['New Folder', 'Create a new folder'], 
-                ['Recent Files', 'View recent files'], 
+                ['New File', 'Create a new file'],
+                ['New Folder', 'Create a new folder'],
+                ['Recent Files', 'View recent files'],
                 ['Favorite Files/Folders', 'View favorite files'],
                 ['Switch Project', 'Switch Between Projects']
             ], self.custom_commands)
-            
+
 
         if command == -1:
             return #nothing selected do nothing
@@ -197,7 +234,7 @@ class FindCommand(sublime_plugin.TextCommand):
 
     def show_projects(self):
         self.window.show_quick_panel(
-            [['New Project', 'Create a New Project']] + [[p.name, p.match or 'Match Everything'] for p in projects], 
+            [['New Project', 'Create a New Project']] + [[p.name, p.match or 'Match Everything'] for p in projects],
             self.change_project
         )
 
@@ -205,15 +242,17 @@ class FindCommand(sublime_plugin.TextCommand):
         global current_project
         if project_number < 0:
             return
+
         if project_number == 0:
             self.create_project()
+
         else:
             current_project = projects[project_number - 1]
             projects.remove(current_project)
             projects.insert(0, current_project)
             self.update_projects()
-            
-        self.show_collection('recent')
+            IndexBuilder(current_project).run()
+            self.show_collection('index')
 
     def create_project(self, response=None):
         global current_project
@@ -229,6 +268,7 @@ class FindCommand(sublime_plugin.TextCommand):
             self.update_projects()
             current_project = project
             sublime.status_message("Project '%s' created!" % project.name)
+            self.show_collection('index')
 
     def update_projects(self):
         write_list_to_file(
@@ -251,25 +291,25 @@ class FindCommand(sublime_plugin.TextCommand):
                     Filename [short unique path]
                     Shortened Path
 
-            This allows you to refine your search in reverse order, instead of having to 
+            This allows you to refine your search in reverse order, instead of having to
             back track.
         '''
-        print current_project
+        print collections[collection] % current_project.name
         self.files = get_list_from_file(collections[collection] % current_project.name)
         search_names = [format_path_for_search(p) for p in get_unique_suffixes(self.files)]
         short_paths = [shorten_path(p, file_path_depth[collection]) for p in self.files]
 
         self.window.show_quick_panel(
-            [[a, b] for a, b in zip(search_names, short_paths)],
+            map(list, zip(search_names, short_paths)),
             self.open_collection
         )
 
     def open_collection(self, file_number):
         if file_number < 0:
             return
-        
+
         path = self.files[file_number]
-        self.open_path(path)    
+        self.open_path(path)
 
     def file_prompt(self):
         self.prompt("Create a New File", self.open_path)
@@ -281,11 +321,11 @@ class FindCommand(sublime_plugin.TextCommand):
             self.change_directory(path)
         else:
             self.window.open_file(path)
-    
+
     def delete_file(self, confirm = -1):
         if confirm == -1:
             self.prompt(
-                "Delete File: %s [blank/\"no\" to cancel]" % self.file_name, 
+                "Delete File: %s [blank/\"no\" to cancel]" % self.file_name,
                 self.delete_file,
                 ''
             )
@@ -300,26 +340,26 @@ class FindCommand(sublime_plugin.TextCommand):
         self.prompt("Create a New Directory", self.create_directory)
 
     def create_directory(self, path):
-        if os.path.exists(path): 
+        if os.path.exists(path):
             sublime.status_message(path + " already exists...")
         else:
             os.makedirs(path)
             sublime.status_message(path + " succesfully created...")
-            
+
         self.change_directory(path)
 
     def prompt(self, title, follow, path = "default"):
         if path == "default":
-            path = os.path.join(self.path, '') 
+            path = os.path.join(self.path, '')
 
         self.window.show_input_panel(
-            title, 
+            title,
             path,
-            follow, 
-            None, 
+            follow,
+            None,
             None
         )
-    
+
     def go_back_directory(self):
         parent_path = os.path.split(self.path)[0]
         self.change_directory(parent_path)
@@ -327,17 +367,17 @@ class FindCommand(sublime_plugin.TextCommand):
     def change_directory(self, new_path):
         global path
         self.path = new_path
-        path = self.path       
-        self.list_files() 
+        path = self.path
+        self.list_files()
 
 #Add file path to recent everytime we open/close it
 class RecentCommand(sublime_plugin.EventListener):
     def on_close(self, view):
         self.update_recent(view.file_name())
-    
+
     def on_load(self, view):
         self.update_recent(view.file_name())
-    
+
     def update_recent(self, file_name):
         collection_name = self.get_collection(file_name)
         if not file_name:
@@ -386,7 +426,7 @@ def shorten_path(path, depth = 2):
         shorten a file path to only show the lowest "depth" number of folders
         e.g. shorten_path('Z:\folder_a\folder_b\folder_c\folder_d\file.py', 2) => '..\folder_c\folder_d\file.py'
     '''
-    if not depth: 
+    if not depth:
         return path
 
     tail, head = os.path.split(path)
@@ -400,14 +440,14 @@ def shorten_path(path, depth = 2):
         else:
             break
     else:
-        output.append('..')         
+        output.append('..')
 
     return  os.path.join(*reversed(output))
 
 def create_display_names(paths, depth = 0):
     display_names = []
     for path in paths:
-        #be able to quickly filter for directories, helpful if you are trying to walk the 
+        #be able to quickly filter for directories, helpful if you are trying to walk the
         #directory tree.  This could be slow in huge directories, it may be quicker to just
         #check for a file extension, it wouldn't be perfect, but it is probably good enough
         prefix = directory_prefix if os.path.isdir(path) else ""
@@ -452,7 +492,7 @@ def _get_unique_suffixes(paths, end):
         if len(unique_values) == 1:
             short_path = os.path.join(suffix, end) if end else suffix
             output.append([short_path, unique_values.pop()['path']])
-            
+
         else:
             new_end = os.path.join(suffix, end) if end else suffix
             output += _get_unique_suffixes(unique_values, new_end)
@@ -481,9 +521,10 @@ def format_path_for_search(path):
             foobar -> 1 result
     '''
     tail, head = os.path.split(path)
+    prefix = directory_prefix if "." not in path else ""
     if tail and head:
-        return "%s [%s]" % (head, os.path.join('..', path))
+        return "%s%s [%s]" % (prefix, head, os.path.join('..', path))
     if tail:
         return 'Home (%s)' % path
     else:
-        return path
+        return prefix + path
