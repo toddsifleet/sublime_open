@@ -1,7 +1,7 @@
 [
     
     { 
-        "keys": ["command+shift+f"],
+        "keys": ["command+ctrl+f"],
         "command": "find", 
         "args": {
             "command": "show_collection",
@@ -10,7 +10,7 @@
     },
     
     {
-        "keys": ["command+shift+r"],
+        "keys": ["command+ctrl+r"],
         "command": "find",
         "args": {
             "command": "show_collection",
@@ -33,31 +33,31 @@
     },
 
     { 
-        "keys": ["command+ctrl+shift+f"],
+        "keys": ["command+ctrl+ctrl+f"],
         "command": "favorite",
         "args": {"command": "parent_folder"}  
     },
         
     {
-        "keys": ["command+shift+o"],
+        "keys": ["command+ctrl+o"],
         "command": "find",
         "args": {"command": "open"}  
     },
         
     {
-        "keys": ["command+shift+n"],
+        "keys": ["command+ctrl+n"],
         "command": "find",
         "args": {"command": "new_file"}  
     },
         
     {
-        "keys": ["command+shift+d"],
+        "keys": ["command+ctrl+d"],
         "command": "find",
         "args": {"command": "new_directory"}  
     },
         
     {
-        "keys": ["command+shift+backspace"],
+        "keys": ["command+ctrl+backspace"],
         "command": "find",
         "args": {"command": "delete_file"}  
     }
