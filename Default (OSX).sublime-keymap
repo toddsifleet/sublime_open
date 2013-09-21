@@ -33,7 +33,7 @@
     },
 
     { 
-        "keys": ["command+ctrl+ctrl+f"],
+        "keys": ["command+ctrl+alt+f"],
         "command": "favorite",
         "args": {"command": "parent_folder"}  
     },
